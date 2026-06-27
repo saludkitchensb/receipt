@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dietliciouss — Receipt Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --green: #1A5C30;
+    --green-mid: #2E7D46;
+    --green-light: #E8F5EC;
+    --green-pale: #F0FAF3;
+    --green-accent: #4CAF72;
+    --gold: #B8860B;
+    --gold-light: #FEF9E7;
+    --dark: #1A1A1A;
+    --mid: #444;
+    --sub: #666;
+    --hint: #999;
+    --border: #E0E0E0;
+    --white: #FFFFFF;
+    --bg: #F5F7F5;
+    --danger: #C62828;
+    --danger-light: #FFEBEE;
+    --paid-green: #1B5E20;
+    --pending: #E65100;
+    --pending-light: #FFF3E0;
+    --preparing: #6A1B9A;
+    --preparing-light: #F3E5F5;
+    --ready: #00695C;
+    --ready-light: #E0F2F1;
+    --delivered: #0D47A1;
+    --delivered-light: #E3F2FD;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--dark);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  .header {
+    background: var(--green);
+    padding: 16px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+  .header-sub { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 1px; }
+  .header-badge {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: .3px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .screen-pad { padding: 16px; }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .search-bar input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+    color: var(--dark);
+    background: transparent;
+  }
+  .search-icon { font-size: 16px; color: var(--hint); }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    font-size: 13px;
+    font-weight: 500;
+    background: #fff;
+    color: var(--mid);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .filter-chip.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--hint);
+    margin-bottom: 10px;
+  }
+
+  .order-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    margin-bottom: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .1s, box-shadow .1s;
+    -webkit-user-select: none;
+  }
+  .order-card:active { transform: scale(.98); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  .order-card-top {
+    padding: 14px 16px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .order-inv { font-size: 13px; font-weight: 700; color: var(--green); }
+  .order-name { font-size: 16px; font-weight: 600; color: var(--dark); margin-top: 2px; }
+  .order-date { font-size: 12px; color: var(--hint); margin-top: 2px; }
+  .order-right { text-align: right; }
+  .order-amount { font-size: 18px; font-weight: 700; color: var(--dark); }
+  .order-status {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+  }
+  .status-paid { background: var(--green-light); color: var(--paid-green); }
+  .status-pending { background: var(--pending-light); color: var(--pending); }
+  .status-preparing { background: var(--preparing-light); color: var(--preparing); }
+  .status-ready { background: var(--ready-light); color: var(--ready); }
+  .status-delivered { background: var(--delivered-light); color: var(--delivered); }
+
+  .order-card-bottom {
+    border-top: 1px solid #F0F0F0;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .order-items-preview { font-size: 12px; color: var(--sub); flex: 1; margin-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .order-action-btn {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    padding: 5px 12px;
+    border: 1.5px solid var(--green);
+    border-radius: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--hint);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--sub); margin-bottom: 6px; }
+  .empty-desc { font-size: 14px; line-height: 1.5; }
+
+  .receipt-screen { background: var(--bg); }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 16px 0;
+    color: var(--green);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    -webkit-user-select: none;
+  }
+  .back-btn:active { opacity: .7; }
+
+  /* ── STATUS CONTROL BAR ── */
+  .status-control {
+    margin: 14px 16px 0;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .status-control-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--hint);
+    margin-bottom: 10px;
+  }
+  .status-steps {
+    display: flex;
+    gap: 6px;
+  }
+  .status-step {
+    flex: 1;
+    padding: 9px 2px;
+    border-radius: 9px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--sub);
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s;
+    line-height: 1.3;
+  }
+  .status-step:active { transform: scale(.95); }
+  .status-step.active-pending { background: var(--pending-light); border-color: var(--pending); color: var(--pending); }
+  .status-step.active-paid { background: var(--green-light); border-color: var(--paid-green); color: var(--paid-green); }
+  .status-step.active-preparing { background: var(--preparing-light); border-color: var(--preparing); color: var(--preparing); }
+  .status-step.active-ready { background: var(--ready-light); border-color: var(--ready); color: var(--ready); }
+  .status-step.active-delivered { background: var(--delivered-light); border-color: var(--delivered); color: var(--delivered); }
+  .status-step .step-emoji { display: block; font-size: 16px; margin-bottom: 2px; }
+  .status-updating { opacity: .5; pointer-events: none; }
+
+  .receipt-wrapper {
+    padding: 14px 16px 110px;
+  }
+
+  .receipt-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  }
+
+  .receipt-header {
+    background: var(--green);
+    padding: 22px 24px 18px;
+  }
+  .receipt-brand { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.5px; }
+  .receipt-brand-sub { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 2px; }
+  .receipt-type-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 14px;
+  }
+  .receipt-type-badge {
+    background: rgba(255,255,255,.2);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    padding: 4px 12px;
+    border-radius: 6px;
+    text-transform: uppercase;
+  }
+  .receipt-num { text-align: right; }
+  .receipt-num-label { font-size: 10px; color: rgba(255,255,255,.6); }
+  .receipt-num-val { font-size: 18px; font-weight: 700; color: #fff; }
+  .receipt-date { font-size: 11px; color: rgba(255,255,255,.65); margin-top: 2px; }
+
+  .receipt-body { padding: 20px 24px; }
+
+  .receipt-section { margin-bottom: 18px; }
+  .receipt-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--hint);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .receipt-customer-name { font-size: 17px; font-weight: 700; color: var(--dark); }
+  .receipt-customer-detail { font-size: 13px; color: var(--sub); margin-top: 3px; line-height: 1.5; }
+
+  .receipt-item {
+    font-size: 13px;
+    color: var(--mid);
+    padding: 5px 0;
+    border-bottom: 1px solid #F8F8F8;
+    line-height: 1.5;
+  }
+  .receipt-item:last-child { border-bottom: none; }
+  .receipt-item-name { color: var(--dark); font-weight: 500; }
+  .receipt-item-detail { color: var(--hint); font-size: 12px; }
+
+  .receipt-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--sub);
+    padding: 4px 0;
+  }
+  .receipt-meta-row.bold { color: var(--dark); font-weight: 600; }
+
+  .receipt-divider {
+    border: none;
+    border-top: 1.5px dashed var(--border);
+    margin: 14px 0;
+  }
+
+  .receipt-total-block {
+    background: var(--green-pale);
+    border: 1.5px solid var(--green-light);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+  }
+  .receipt-total-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--sub); margin-bottom: 4px; }
+  .receipt-total-amount { font-size: 32px; font-weight: 800; color: var(--green); letter-spacing: -.5px; }
+  .receipt-total-payment { font-size: 13px; color: var(--sub); margin-top: 4px; }
+
+  .receipt-stamp {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2.5px solid var(--green);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 18px;
+  }
+  .receipt-stamp-text {
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--green);
+    letter-spacing: .2em;
+  }
+
+  .receipt-footer {
+    border-top: 1px solid #F0F0F0;
+    padding: 14px 24px 18px;
+    text-align: center;
+  }
+  .receipt-footer-brand { font-size: 14px; font-weight: 700; color: var(--green); }
+  .receipt-footer-sub { font-size: 12px; color: var(--hint); margin-top: 3px; }
+
+  .fab-row {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 16px 24px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    display: flex;
+    gap: 10px;
+    z-index: 200;
+  }
+  .fab {
+    flex: 1;
+    padding: 15px;
+    border-radius: 14px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-user-select: none;
+    transition: transform .1s, opacity .1s;
+  }
+  .fab:active { transform: scale(.96); opacity: .85; }
+  .fab-wa { background: #25D366; color: #fff; }
+  .fab-img { background: var(--green); color: #fff; }
+  .fab-text { background: #fff; border: 1.5px solid var(--green); color: var(--green); }
+
+  .loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+  }
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--green-light);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--sub); }
+
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--dark);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .error-box {
+    background: var(--danger-light);
+    border: 1px solid #FFCDD2;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px;
+    text-align: center;
+  }
+  .error-box .err-icon { font-size: 32px; margin-bottom: 8px; }
+  .error-box .err-msg { font-size: 14px; color: var(--danger); line-height: 1.5; margin-bottom: 12px; }
+  .retry-btn {
+    background: var(--green);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 300;
+    display: none;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; color: var(--dark); }
+  .modal-input-label { font-size: 12px; font-weight: 600; color: var(--sub); margin-bottom: 6px; display: block; }
+  .modal-input {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--dark);
+    outline: none;
+    margin-bottom: 14px;
+  }
+  .modal-input:focus { border-color: var(--green); }
+  .modal-save-btn {
+    width: 100%;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .config-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    -webkit-user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="header-logo">🌿 Dietliciouss</div>
+      <div class="header-sub">Receipt Generator</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="header-badge" id="order-count-badge">— orders</div>
+    <div class="config-icon" onclick="openConfig()" title="Settings">⚙️</div>
+  </div>
+</div>
+
+<div class="screen active" id="screen-list">
+  <div class="screen-pad">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Cari nama atau no. invois..." oninput="filterOrders()" autocomplete="off">
+    </div>
+    <div class="filter-row">
+      <div class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">Semua</div>
+      <div class="filter-chip" data-filter="PENDING" onclick="setFilter('PENDING',this)">Pending</div>
+      <div class="filter-chip" data-filter="PAID" onclick="setFilter('PAID',this)">Paid ✅</div>
+      <div class="filter-chip" data-filter="PREPARING" onclick="setFilter('PREPARING',this)">Preparing 👨‍🍳</div>
+      <div class="filter-chip" data-filter="READY" onclick="setFilter('READY',this)">Ready 🛍️</div>
+      <div class="filter-chip" data-filter="DELIVERED" onclick="setFilter('DELIVERED',this)">Delivered 📦</div>
+    </div>
+    <div class="section-label" id="list-label">Orders</div>
+    <div id="orders-container"></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-receipt">
+  <div class="back-btn" onclick="goBack()">← Balik</div>
+
+  <!-- STATUS CONTROL -->
+  <div class="status-control" id="status-control">
+    <div class="status-control-label">Tukar Status Pesanan</div>
+    <div class="status-steps" id="status-steps">
+      <div class="status-step" data-status="PENDING" onclick="updateStatus('PENDING')"><span class="step-emoji">⏳</span>Pending</div>
+      <div class="status-step" data-status="PAID ✅" onclick="updateStatus('PAID ✅')"><span class="step-emoji">✅</span>Paid</div>
+      <div class="status-step" data-status="PREPARING 👨‍🍳" onclick="updateStatus('PREPARING 👨‍🍳')"><span class="step-emoji">👨‍🍳</span>Preparing</div>
+      <div class="status-step" data-status="READY 🛍️" onclick="updateStatus('READY 🛍️')"><span class="step-emoji">🛍️</span>Ready</div>
+      <div class="status-step" data-status="DELIVERED 📦" onclick="updateStatus('DELIVERED 📦')"><span class="step-emoji">📦</span>Delivered</div>
+    </div>
+  </div>
+
+  <div class="receipt-wrapper">
+    <div class="receipt-card" id="receipt-card"></div>
+  </div>
+  <div class="fab-row">
+    <button class="fab fab-text" onclick="copyReceiptWA()">📋 Salin</button>
+    <button class="fab fab-img" onclick="saveAsImage()">🖼️ Simpan</button>
+    <button class="fab fab-wa" onclick="sendWA()">📲 WA</button>
+  </div>
+</div>
+
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;">
+  <div class="loading-screen">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-msg">Memuatkan orders...</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="config-modal" onclick="closeConfigOutside(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-title">⚙️ Tetapan</div>
+    <label class="modal-input-label">Apps Script Web App URL</label>
+    <input class="modal-input" type="url" id="config-url" placeholder="https://script.google.com/macros/s/..." autocomplete="off">
+    <div style="font-size:12px;color:var(--hint);margin-bottom:14px;margin-top:-10px;line-height:1.5;">
+      Dapatkan URL dari Google Sheets → Extensions → Apps Script → Deploy → Manage Deployments. URL ni diperlukan untuk tukar status pesanan.
+    </div>
+    <button class="modal-save-btn" onclick="saveConfig()">Simpan & Muat Semula</button>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1twPRhkds-7y66iBDSepXlK-McKSEYQ1Y2pvgBkv_Lgk';
+const WA_NUMBER = '60126180886';
+
+// Parse jumlah/amount walau format apa pun: "160", "RM160", "RM 160.00", "160.00"
+function parseAmount(val) {
+  if (val === null || val === undefined) return 0;
+  const cleaned = String(val).replace(/[^0-9.]/g, '');
+  return parseFloat(cleaned) || 0;
+}
+
+let APPS_SCRIPT_URL = localStorage.getItem('dietliciouss_script_url') || '';
+
+let allOrders = [];
+let activeFilter = 'all';
+let currentOrder = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (!APPS_SCRIPT_URL) {
+    setTimeout(() => openConfig(), 300);
+  } else {
+    loadOrders();
+  }
+});
+
+async function loadOrders() {
+  showLoading('Memuatkan orders...');
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDERS`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Gagal sambung ke Sheets');
+    const text = await res.text();
+    const jsonStr = text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, '');
+    const json = JSON.parse(jsonStr);
+    allOrders = parseGViz(json);
+    hideLoading();
+    renderOrders();
+  } catch (err) {
+    hideLoading();
+    showError(err.message);
+  }
+}
+
+function parseGViz(json) {
+  const table = json.table;
+  if (!table || !table.rows || table.rows.length === 0) return [];
+  const cols = table.cols;
+  const idx = { inv:-1, tarikh:-1, nama:-1, tel:-1, alamat:-1, items:-1, jumlah:-1, status:-1, bayar:-1, nota:-1 };
+  cols.forEach((c, i) => {
+    const lb = (c.label || '').toLowerCase().trim();
+    if (lb.includes('invois') || lb.includes('invoice'))            idx.inv    = i;
+    else if (lb.includes('tarikh') || lb.includes('date'))          idx.tarikh = i;
+    else if (lb.includes('nama') || lb.includes('customer'))        idx.nama   = i;
+    else if (lb.includes('tel') || lb.includes('phone'))            idx.tel    = i;
+    else if (lb.includes('alamat') || lb.includes('address'))       idx.alamat = i;
+    else if (lb.includes('item') || lb.includes('pesanan'))         idx.items  = i;
+    else if (lb.includes('jumlah') || lb.includes('rm') || lb.includes('total') || lb.includes('amount')) idx.jumlah = i;
+    else if (lb.includes('status'))                                 idx.status = i;
+    else if (lb.includes('bayar') || lb.includes('cara') || lb.includes('payment')) idx.bayar  = i;
+    else if (lb.includes('nota') || lb.includes('note'))            idx.nota   = i;
+  });
+
+  const get = (row, i) => {
+    if (i < 0 || !row.c || !row.c[i]) return '';
+    const cell = row.c[i];
+    if (cell === null) return '';
+    if (cell.v !== null && cell.v !== undefined) return String(cell.v);
+    return cell.f || '';
+  };
+
+  return table.rows
+    .filter(r => r.c && get(r, idx.inv))
+    .map(r => {
+      const rawAmt = get(r, idx.jumlah);
+      const cleanAmt = rawAmt.replace(/[^0-9.]/g, '') || '0';
+      return {
+        inv:    get(r, idx.inv),
+        tarikh: get(r, idx.tarikh),
+        nama:   get(r, idx.nama),
+        tel:    get(r, idx.tel),
+        alamat: get(r, idx.alamat),
+        items:  get(r, idx.items),
+        jumlah: cleanAmt,
+        status: get(r, idx.status) || 'PENDING',
+        bayar:  get(r, idx.bayar),
+        nota:   get(r, idx.nota),
+      };
+    })
+    .reverse();
+}
+
+function renderOrders() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const container = document.getElementById('orders-container');
+
+  let filtered = allOrders.filter(o => {
+    const matchFilter = activeFilter === 'all' ||
+      o.status.toUpperCase().includes(activeFilter.toUpperCase());
+    const matchSearch = !search ||
+      o.nama.toLowerCase().includes(search) ||
+      o.inv.toLowerCase().includes(search) ||
+      o.tel.includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  document.getElementById('order-count-badge').textContent = `${filtered.length} orders`;
+  document.getElementById('list-label').textContent =
+    activeFilter === 'all' ? `Semua Orders (${filtered.length})` :
+    activeFilter === 'PENDING' ? `Pending (${filtered.length})` :
+    activeFilter === 'PAID' ? `Dah Bayar (${filtered.length})` :
+    activeFilter === 'PREPARING' ? `Sedang Disediakan (${filtered.length})` :
+    activeFilter === 'READY' ? `Sedia Untuk Dihantar (${filtered.length})` :
+    `Dihantar (${filtered.length})`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">Tiada order dijumpai</div>
+        <div class="empty-desc">Cuba tukar filter atau cari dengan nama lain.</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(o => {
+    const amount = parseAmount(o.jumlah);
+    const statusClass = o.status.includes('PAID') ? 'status-paid' :
+                        o.status.includes('PREPARING') ? 'status-preparing' :
+                        o.status.includes('READY') ? 'status-ready' :
+                        o.status.includes('DELIVERED') ? 'status-delivered' : 'status-pending';
+    const itemsPreview = o.items.replace(/\n/g, ' • ').substring(0, 80) + (o.items.length > 80 ? '...' : '');
+    const isPaid = o.status.includes('PAID') || o.status.includes('DELIVERED') || o.status.includes('PREPARING') || o.status.includes('READY');
+
+    return `
+      <div class="order-card" onclick="openReceipt('${encodeURIComponent(JSON.stringify(o))}')">
+        <div class="order-card-top">
+          <div>
+            <div class="order-inv">${o.inv}</div>
+            <div class="order-name">${o.nama || '—'}</div>
+            <div class="order-date">${o.tarikh} • ${o.tel || '—'}</div>
+          </div>
+          <div class="order-right">
+            <div class="order-amount">RM ${amount.toFixed(2)}</div>
+            <div class="order-status ${statusClass}">${o.status}</div>
+          </div>
+        </div>
+        <div class="order-card-bottom">
+          <div class="order-items-preview">${itemsPreview}</div>
+          <div class="order-action-btn">${isPaid ? '🧾 Resit' : '📄 Invois'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderOrders();
+}
+
+function filterOrders() { renderOrders(); }
+
+function highlightStatusSteps(status) {
+  const steps = document.querySelectorAll('.status-step');
+  steps.forEach(s => {
+    s.classList.remove('active-pending','active-paid','active-preparing','active-ready','active-delivered');
+    const sStatus = s.dataset.status;
+    if (status.includes('DELIVERED') && sStatus.includes('DELIVERED')) s.classList.add('active-delivered');
+    else if (status.includes('READY') && sStatus.includes('READY')) s.classList.add('active-ready');
+    else if (status.includes('PREPARING') && sStatus.includes('PREPARING')) s.classList.add('active-preparing');
+    else if (status.includes('PAID') && sStatus.includes('PAID')) s.classList.add('active-paid');
+    else if (status.includes('PENDING') && sStatus.includes('PENDING')) s.classList.add('active-pending');
+  });
+}
+
+function openReceipt(encoded) {
+  currentOrder = JSON.parse(decodeURIComponent(encoded));
+  renderReceipt();
+  highlightStatusSteps(currentOrder.status);
+  showScreen('screen-receipt');
+  window.scrollTo(0, 0);
+}
+
+function renderReceipt() {
+  const o = currentOrder;
+  const isPaid = o.status.includes('PAID') || o.status.includes('DELIVERED') || o.status.includes('PREPARING') || o.status.includes('READY');
+  const isReceipt = isPaid;
+
+  const inv = o.inv;
+  const rcpNum = isReceipt ? 'RCP-' + inv.replace('INV-', '') : inv;
+  const amount = parseAmount(o.jumlah);
+  const today = new Date().toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const itemLines = o.items.split('\n').filter(l => l.trim()).map(line => {
+    return `<div class="receipt-item">
+      <span class="receipt-item-name">${line.split(' = ')[0]}</span>
+      ${line.includes(' = ') ? `<span class="receipt-item-detail"> — ${line.split(' = ')[1]}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  // Stamp ikut status
+  let stampHtml = '';
+  if (o.status.includes('DELIVERED')) {
+    stampHtml = `<div class="receipt-stamp" style="border-color:var(--delivered);"><span style="font-size:20px;">📦</span><span class="receipt-stamp-text" style="color:var(--delivered);">DELIVERED</span></div>`;
+  } else if (o.status.includes('READY')) {
+    stampHtml = `<div class="receipt-stamp" style="border-color:var(--ready);"><span style="font-size:20px;">🛍️</span><span class="receipt-stamp-text" style="color:var(--ready);letter-spacing:.15em;">READY</span></div>`;
+  } else if (o.status.includes('PREPARING')) {
+    stampHtml = `<div class="receipt-stamp" style="border-color:var(--preparing);"><span style="font-size:20px;">👨‍🍳</span><span class="receipt-stamp-text" style="color:var(--preparing);letter-spacing:.1em;">PREPARING</span></div>`;
+  } else if (o.status.includes('PAID')) {
+    stampHtml = `<div class="receipt-stamp"><span style="font-size:20px;">✅</span><span class="receipt-stamp-text">PAID</span></div>`;
+  } else {
+    stampHtml = `<div class="receipt-stamp" style="border-color:var(--pending);"><span style="font-size:18px;">⏳</span><span class="receipt-stamp-text" style="color:var(--pending);letter-spacing:.1em;">PENDING</span></div>`;
+  }
+
+  const paymentNote = !isReceipt ? `
+    <div style="background:var(--pending-light);border:1px solid #FFCC80;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--pending);margin-bottom:6px;">MAKLUMAT PEMBAYARAN</div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.6;">
+        Bank: <b>Maybank</b><br>
+        No. Akaun: <b>562209645974</b><br>
+        Nama: <b>Salud Kitchen Sdn Bhd</b><br><br>
+        <span style="font-size:12px;color:var(--sub);">Sila screenshot resit bayaran dan hantar ke WhatsApp kami.</span>
+      </div>
+    </div>` : '';
+
+  document.getElementById('receipt-card').innerHTML = `
+    <div class="receipt-header">
+      <div class="receipt-brand">Dietliciouss</div>
+      <div class="receipt-brand-sub">Healthy Frozen Meal Prep • Cyberjaya</div>
+      <div class="receipt-type-row">
+        <div class="receipt-type-badge">${isReceipt ? 'Official Receipt' : 'Invoice'}</div>
+        <div class="receipt-num">
+          <div class="receipt-num-label">${isReceipt ? 'Receipt No.' : 'Invoice No.'}</div>
+          <div class="receipt-num-val">${rcpNum}</div>
+          <div class="receipt-date">${isReceipt ? today : o.tarikh}</div>
+        </div>
+      </div>
+    </div>
+    <div class="receipt-body">
+      <div class="receipt-section">
+        <div class="receipt-section-title">${isReceipt ? 'Resit Untuk' : 'Bil Kepada'}</div>
+        <div class="receipt-customer-name">${o.nama || '—'}</div>
+        <div class="receipt-customer-detail">
+          ${o.tel ? '📞 ' + o.tel : ''}
+          ${o.alamat ? '<br>📍 ' + o.alamat : ''}
+        </div>
+      </div>
+      <div class="receipt-section">
+        <div class="receipt-section-title">Item Pesanan</div>
+        <div class="receipt-items">${itemLines}</div>
+      </div>
+      <hr class="receipt-divider">
+      <div class="receipt-meta-row">
+        <span>Kaedah Bayaran</span>
+        <span style="font-weight:600;">${o.bayar || '—'}</span>
+      </div>
+      <div class="receipt-meta-row">
+        <span>Rujukan</span>
+        <span>${o.inv}</span>
+      </div>
+      ${o.nota ? `<div class="receipt-meta-row"><span>Nota</span><span style="max-width:60%;text-align:right;">${o.nota}</span></div>` : ''}
+      <hr class="receipt-divider">
+      <div class="receipt-total-block">
+        <div class="receipt-total-label">${isReceipt ? 'Jumlah Dibayar' : 'Jumlah Perlu Dibayar'}</div>
+        <div class="receipt-total-amount">RM ${amount.toFixed(2)}</div>
+        <div class="receipt-total-payment">${o.bayar || ''}</div>
+      </div>
+      ${stampHtml}
+      ${paymentNote}
+    </div>
+    <div class="receipt-footer">
+      <div class="receipt-footer-brand">Dietliciouss 🌿</div>
+      <div class="receipt-footer-sub">dietliciouss.my • 012-6180886 • @dietiliciouss.my</div>
+    </div>`;
+}
+
+// ── UPDATE STATUS ─────────────────────────────────────────────────────────────
+async function updateStatus(newStatus) {
+  if (!currentOrder) return;
+  if (!APPS_SCRIPT_URL) { showToast('Sila set Apps Script URL dulu (⚙️)'); openConfig(); return; }
+  if (currentOrder.status === newStatus) { showToast('Status sama je'); return; }
+
+  const control = document.getElementById('status-control');
+  control.classList.add('status-updating');
+
+  const statusKeyword = newStatus.trim().split(' ')[0]; // "PAID ✅" -> "PAID"
+  const url = APPS_SCRIPT_URL + '?action=updateStatus'
+    + '&inv=' + encodeURIComponent(currentOrder.inv)
+    + '&status=' + encodeURIComponent(statusKeyword)
+    + '&_t=' + Date.now();
+
+  showToast('Menghantar ke server...');
+
+  try {
+    // Cuba fetch biasa dulu (boleh baca response). Apps Script /exec sokong CORS untuk GET.
+    const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+    const txt = await res.text();
+    let json = null;
+    try { json = JSON.parse(txt); } catch (e) {}
+
+    if (json && json.ok) {
+      currentOrder.status = json.status || newStatus;
+      const o = allOrders.find(x => x.inv === currentOrder.inv);
+      if (o) o.status = currentOrder.status;
+      highlightStatusSteps(currentOrder.status);
+      renderReceipt();
+      showToast('✅ Berjaya: ' + currentOrder.status);
+    } else if (json && !json.ok) {
+      showToast('⚠️ Server tolak: ' + (json.error || 'unknown'));
+    } else {
+      // Dapat response tapi bukan JSON — mungkin halaman login/permission
+      showToast('⚠️ Response pelik. Check deployment access = Anyone');
+      console.log('Server response:', txt.substring(0, 200));
+    }
+  } catch (err) {
+    // CORS block fetch — fallback guna image, lepas tu reload dari Sheets untuk verify
+    showToast('Menyemak semula...');
+    const img = new Image();
+    img.src = url;
+    setTimeout(async () => {
+      await reloadAndVerify(currentOrder.inv, statusKeyword);
+    }, 2500);
+  } finally {
+    control.classList.remove('status-updating');
+  }
+}
+
+// Reload data dari Sheets dan check sama ada status betul-betul berubah
+async function reloadAndVerify(inv, expectedKeyword) {
+  try {
+    const u = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDERS&_t=${Date.now()}`;
+    const res = await fetch(u);
+    const text = await res.text();
+    const jsonStr = text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, '');
+    const json = JSON.parse(jsonStr);
+    const fresh = parseGViz(json);
+    allOrders = fresh;
+    const updated = fresh.find(x => x.inv === inv);
+    if (updated && updated.status.toUpperCase().includes(expectedKeyword)) {
+      currentOrder.status = updated.status;
+      highlightStatusSteps(updated.status);
+      renderReceipt();
+      showToast('✅ Disahkan: ' + updated.status);
+    } else {
+      showToast('⚠️ Sheet belum berubah. Status: ' + (updated ? updated.status : 'tak jumpa'));
+    }
+  } catch (e) {
+    showToast('Gagal semak semula: ' + e.message);
+  }
+}
+
+// ── SAVE AS IMAGE ─────────────────────────────────────────────────────────────
+function saveAsImage() {
+  if (!currentOrder) return;
+  showToast('Menjana imej...');
+  const card = document.getElementById('receipt-card');
+
+  html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+    canvas.toBlob(blob => {
+      const isPaid = currentOrder.status.includes('PAID') || currentOrder.status.includes('DELIVERED') || currentOrder.status.includes('PREPARING');
+      const prefix = isPaid ? 'Resit' : 'Invois';
+      const fileName = `${prefix}-${currentOrder.inv}-${currentOrder.nama.replace(/[^a-zA-Z0-9]/g,'_')}.png`;
+
+      // Cuba guna Web Share API (mobile) — boleh terus share gambar
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: prefix + ' Dietliciouss' })
+          .then(() => showToast('Dikongsi!'))
+          .catch(() => downloadBlob(blob, fileName));
+      } else {
+        downloadBlob(blob, fileName);
+      }
+    }, 'image/png');
+  }).catch(err => {
+    showToast('Gagal jana imej: ' + err.message);
+  });
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Imej disimpan! 🖼️');
+}
+
+// ── WA SEND ───────────────────────────────────────────────────────────────────
+function buildWAText() {
+  if (!currentOrder) return '';
+  const o = currentOrder;
+  const isPaid = o.status.includes('PAID') || o.status.includes('DELIVERED') || o.status.includes('PREPARING') || o.status.includes('READY');
+  const rcpNum = isPaid ? 'RCP-' + o.inv.replace('INV-', '') : o.inv;
+  const amount = parseAmount(o.jumlah);
+  const today = new Date().toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+  if (isPaid) {
+    return `✅ *RESIT RASMI — DIETLICIOUSS*\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `No. Resit : *${rcpNum}*\n` +
+      `Tarikh    : ${today}\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `*Resit Untuk:*\n` +
+      `Nama  : ${o.nama}\n` +
+      `Tel   : ${o.tel || '—'}\n\n` +
+      `*Item Pesanan:*\n` +
+      o.items.split('\n').filter(l=>l.trim()).map(l => '• ' + l).join('\n') +
+      `\n\n━━━━━━━━━━━━━━━━━━\n` +
+      `Kaedah : ${o.bayar || '—'}\n` +
+      `*JUMLAH DIBAYAR : RM ${amount.toFixed(2)}*\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `Pembayaran diterima. Terima kasih! 🙏\n` +
+      `Order sedang disediakan.\n\n` +
+      `_Terima kasih kerana memilih Dietliciouss!_\n` +
+      `_@dietiliciouss.my | 012-6180886_`;
+  } else {
+    return `🧾 *INVOIS — DIETLICIOUSS*\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `No. Invois : *${o.inv}*\n` +
+      `Tarikh     : ${o.tarikh}\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `*Kepada:*\n` +
+      `Nama  : ${o.nama}\n` +
+      `Tel   : ${o.tel || '—'}\n\n` +
+      `*Item Pesanan:*\n` +
+      o.items.split('\n').filter(l=>l.trim()).map(l => '• ' + l).join('\n') +
+      `\n\n━━━━━━━━━━━━━━━━━━\n` +
+      `*JUMLAH : RM ${amount.toFixed(2)}*\n\n` +
+      `Kaedah Bayaran: ${o.bayar || '—'}\n` +
+      `Bank: Maybank\n` +
+      `No. Akaun: 562209645974\n` +
+      `Nama: Salud Kitchen Sdn Bhd\n\n` +
+      `_Sila screenshot resit bayaran dan hantar semula._\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `_Terima kasih kerana memilih Dietliciouss!_\n` +
+      `_@dietiliciouss.my | 012-6180886_`;
+  }
+}
+
+function sendWA() {
+  if (!currentOrder) return;
+  const tel = currentOrder.tel ? currentOrder.tel.replace(/[^0-9]/g, '') : WA_NUMBER;
+  const waNum = tel.startsWith('60') ? tel : '60' + tel.replace(/^0/, '');
+  const text = encodeURIComponent(buildWAText());
+  window.open(`https://wa.me/${waNum}?text=${text}`, '_blank');
+}
+
+function copyReceiptWA() {
+  const text = buildWAText();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('Teks resit disalin!'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Teks resit disalin!');
+  }
+}
+
+function goBack() {
+  showScreen('screen-list');
+  currentOrder = null;
+  renderOrders();
+}
+
+function openConfig() {
+  document.getElementById('config-url').value = APPS_SCRIPT_URL;
+  document.getElementById('config-modal').classList.add('open');
+}
+
+function closeConfigOutside(e) {
+  if (e.target === document.getElementById('config-modal')) {
+    document.getElementById('config-modal').classList.remove('open');
+  }
+}
+
+function saveConfig() {
+  const url = document.getElementById('config-url').value.trim();
+  if (!url) { showToast('URL diperlukan'); return; }
+  APPS_SCRIPT_URL = url;
+  localStorage.setItem('dietliciouss_script_url', url);
+  document.getElementById('config-modal').classList.remove('open');
+  loadOrders();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg || 'Loading...';
+  document.getElementById('loading-overlay').style.display = 'block';
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('orders-container').innerHTML = `
+    <div class="error-box">
+      <div class="err-icon">⚠️</div>
+      <div class="err-msg">Gagal memuatkan data:<br>${msg}<br><br>Pastikan Sheet anda di-set kepada "Anyone with the link can view".</div>
+      <button class="retry-btn" onclick="loadOrders()">Cuba Semula</button>
+    </div>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
